@@ -5,7 +5,6 @@
 
 Our end-to-end data engineering pipeline that ingests the DataCo supply chain dataset into PostgreSQL and transforms it into a 3NF database, with further transformations into a star schema to make the data analytics-ready.
 
-Built as a project for **EAS 550**.
 
 ## Setup
 
@@ -147,7 +146,7 @@ Analytics-oriented star schema derived from the 3NF model.
 
 Our dashboard showcases 3 dynamic visualizations that can be adjusted via sliders and filters.
 
-Try it live: **[eas550-supply-chain-dashboard.onrender.com](https://eas550-supply-chain-dashboard.onrender.com/)**
+Try it live: **[eas550-supply-chain-dashboard.onrender.com](https://supply-chain-data-pipeline.streamlit.app/)**
 
 ### Gross Revenue Analytics
 Revenue and profit trends that can be filtered by a date range or by customer segment.
