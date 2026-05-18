@@ -1,0 +1,81 @@
+version: 2
+
+models:
+  - name: fact_orders
+    description: "Central fact table for supply chain orders at the item level."
+    columns:
+      - name: order_item_id
+        description: "Primary key — one row per line item."
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to dim_orders / stg_orders."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: customer_id
+        description: "Foreign key to dim_customers."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: product_id
+        description: "Foreign key to dim_products."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: order_status
+        description: "Lifecycle status of the order."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - COMPLETE
+                  - PENDING
+                  - PENDING_PAYMENT
+                  - PROCESSING
+                  - CLOSED
+                  - ON_HOLD
+                  - SUSPECTED_FRAUD
+                  - CANCELED
+                  - PAYMENT_REVIEW
+                quote: true
+      - name: shipping_mode
+        description: "Carrier shipping method selected on the order."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - Standard Class
+                  - First Class
+                  - Second Class
+                  - Same Day
+                quote: true
+      - name: quantity
+        data_tests:
+          - not_null
+
+  - name: dim_customers
+    description: "Customer dimension."
+    columns:
+      - name: customer_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_products
+    description: "Product dimension enriched with category and department."
+    columns:
+      - name: product_id
+        data_tests:
+          - unique
+          - not_null
