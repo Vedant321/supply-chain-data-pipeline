@@ -1,0 +1,130 @@
+name: CI — SQL Lint & dbt Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────
+  # JOB 1: Lint all SQL files with SQLFluff
+  # ──────────────────────────────────────────────
+  sqlfluff-lint:
+    name: SQLFluff Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install SQLFluff
+        run: pip install sqlfluff sqlfluff-templater-dbt
+
+      # Lint hand-written SQL under sql/ and dbt models under
+      # eas550_final_project/models/. The dbt models live inside the
+      # project subdirectory, so the path must include that prefix.
+      # Rules and dialect are configured in .sqlfluff at the repo root.
+      - name: Run SQLFluff lint
+        run: sqlfluff lint sql/ eas550_final_project/models/
+
+  # ──────────────────────────────────────────────
+  # JOB 2: Apply schema and run dbt against the configured Postgres
+  # ──────────────────────────────────────────────
+  dbt-build:
+    name: dbt Build & Test
+    runs-on: ubuntu-latest
+    needs: sqlfluff-lint
+
+    # Connection details are pulled from repository Variables
+    # (Settings → Secrets and variables → Actions → Variables).
+    # NOTE: PGPASSWORD should ideally be a *Secret* rather than a
+    # Variable so GitHub masks it in job logs.
+    env:
+      PGHOST: ${{ vars.PGHOST }}
+      PGPORT: ${{ vars.PGPORT }}
+      PGDATABASE: ${{ vars.PGDATABASE }}
+      PGUSER: ${{ vars.PGUSER }}
+      PGPASSWORD: ${{ vars.PGPASSWORD }}
+      DBT_PROFILES_DIR: ${{ github.workspace }}/eas550_final_project
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Apply database schema
+        run: |
+          SCHEMA_FILE=""
+          if [ -f sql/raw/schema.sql ]; then
+            SCHEMA_FILE=sql/raw/schema.sql
+          elif [ -f sql/schema.sql ]; then
+            SCHEMA_FILE=sql/schema.sql
+          fi
+
+          if [ -n "$SCHEMA_FILE" ]; then
+            echo "Applying schema: $SCHEMA_FILE"
+            psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -f "$SCHEMA_FILE"
+          else
+            echo "No schema.sql found — skipping."
+          fi
+
+      # Render profiles.yml from CI env vars so credentials are never
+      # committed to the repo.
+      - name: Write dbt profiles.yml
+        run: |
+          cat > eas550_final_project/profiles.yml << EOF
+          eas550_final_project:
+            target: ci
+            outputs:
+              ci:
+                type: postgres
+                host: ${PGHOST}
+                port: ${PGPORT}
+                user: ${PGUSER}
+                password: ${PGPASSWORD}
+                dbname: ${PGDATABASE}
+                schema: public
+                threads: 4
+          EOF
+
+      - name: Install dbt-postgres
+        run: pip install dbt-postgres
+
+      - name: dbt deps
+        working-directory: eas550_final_project
+        run: dbt deps
+
+      # Build every model + run every test. Selecting a subset
+      # (e.g. +report_daily_revenue) skips models that other tests
+      # reference, causing "relation does not exist" failures.
+      - name: dbt build
+        working-directory: eas550_final_project
+        run: dbt build
+
+      - name: Upload dbt artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbt-artifacts
+          path: |
+            eas550_final_project/target/run_results.json
+            eas550_final_project/target/manifest.json
+          if-no-files-found: ignore
