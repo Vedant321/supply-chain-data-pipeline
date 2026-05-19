@@ -54,7 +54,7 @@ jobs:
       PGPORT: ${{ vars.PGPORT }}
       PGDATABASE: ${{ vars.PGDATABASE }}
       PGUSER: ${{ vars.PGUSER }}
-      PGPASSWORD: ${{ vars.PGPASSWORD }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
       DBT_PROFILES_DIR: ${{ github.workspace }}/eas550_final_project
 
     steps:
