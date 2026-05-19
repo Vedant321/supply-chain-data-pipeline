@@ -5,7 +5,6 @@
 
 Our end-to-end data engineering pipeline that ingests the DataCo supply chain dataset into PostgreSQL and transforms it into a 3NF database, with further transformations into a star schema to make the data analytics-ready.
 
-
 ## Setup
 
 ### Prerequisites
@@ -168,7 +167,6 @@ Determining which categories drive revenue (and which do not).
 Which customers (and from which segment) spend the most
 
 ![Customer spend](reports/app_screenshots/demo5.png)
-
 
 ## Project Structure
 
